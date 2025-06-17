@@ -7,11 +7,13 @@
 /[Oo]bj/
 /[Ll]ogs/
 /[Mm]emoryCaptures/
+/[Uu]serSettings/Layouts/
 **/[Ll]ibrary/**
 **/[Tt]emp/**
 **/[Oo]bj/**
 **/[Ll]ogs/
 **/[Mm]emoryCaptures/**
+**/[Uu]serSettings/Layouts/**
 
 # Build folder
 src/[Bb]uild/*
@@ -85,3 +87,5 @@ ignore.conf
 # VS Code
 .vscode
 .DS_Store
+
+default-6000.dwlt

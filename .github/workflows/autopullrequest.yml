@@ -1,0 +1,30 @@
+name: "Auto Pull Request"
+
+on:
+  workflow_call:
+    inputs:
+      branch-name:
+        required: true
+        type: string
+    secrets:
+      GIT_TOKEN:
+        required: true
+
+jobs:
+  pullToBranch:
+    name: Create pull request to Branch
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout (without LFS)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # Create pull request
+      - name: pull-request
+        run: |
+          gh pr create -B ${{ inputs.branch-name }} --title "Merge ${{ github.ref_name }} into ${{ inputs.branch-name }}" --body 'Created by Github action' || gh pr edit -B ${{ inputs.branch-name }} --title "Merge ${{ github.ref_name }} into ${{ inputs.branch-name }}" --body 'Created by Github action'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}

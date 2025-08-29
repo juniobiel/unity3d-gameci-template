@@ -6,92 +6,13 @@ on:
       - 'feature/**'
       - 'fix/**'
       - 'config/**' 
+      - 'infra/**'
 
 jobs:
   pullToDevelop:
-    name: Create pull request to develop
-    runs-on: ubuntu-latest
-    steps:
-      # Checkout (without LFS)
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: true
-
-      # Create pull request
-      - name: pull-request
-        run: |
-          gh pr create -B develop --title "Merge ${{ github.ref_name }} into develop" --body 'Created by Github action' || gh pr edit -B develop --title "Merge ${{ github.ref_name }} into develop" --body 'Created by Github action'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-
-  # build:
-  #   name: Build for Android
-  #   runs-on: windows-latest
-  #   needs: pullToDevelop
-  #   steps:  
-  #     # Checkout (without LFS)
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #         lfs: true
-
-  #     # Git LFS
-  #     - name: Create LFS file list
-  #       run: git lfs ls-files -l | sort > .lfs-assets-id
-  #     - name: Git LFS Pull
-  #       run: |
-  #         git lfs pull
-  #         git add .
-  #         git reset --hard
-
-  #     - name: Restore LFS cache
-  #       uses: actions/cache@v3
-  #       id: lfs-cache
-  #       with:
-  #         path: .git/lfs
-  #         key: lfs-${{ hashFiles('.lfs-assets-id') }}
-  #         restore-keys: |
-  #           lfs-
-
-  #     - name: Restore cache
-  #       uses: actions/cache@v4
-  #       id: cache
-  #       with:
-  #         path: src/Library
-  #         key: src-Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-  #         restore-keys: |
-  #           src-Library-
-
-  #     # Build
-  #     - name: Build project
-  #       uses: game-ci/unity-builder@v4
-  #       env:
-  #         UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-  #         UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-  #         UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-  #       with: 
-  #         customImage: 'unityci/editor:windows-6000.0.9f1-android-3.1.0' 
-  #         projectPath: src
-  #         targetPlatform: Android
-  #         allowDirtyBuild: false
-  #         versioning: Semantic
-  #         androidExportType: 'androidAppBundle'
-  #         androidAppBundle: true
-  #         androidKeystoreName: appStore.keystore
-  #         androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-  #         androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-  #         androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
-  #         androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
-  #         androidTargetSdkVersion: 'AndroidApiLevel34'
-
-  #     - uses: actions/upload-artifact@v4.3.4
-  #       with:
-  #         name: Android-Build
-  #         path: build/Android
-  #         retention-days: 7
-  #         overwrite: true
-  
-  
+    name: Create pull request to Develop
+    uses: ./.github/workflows/autopullrequest.yml
+    with:
+      branch-name: 'develop'
+    secrets:
+      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}

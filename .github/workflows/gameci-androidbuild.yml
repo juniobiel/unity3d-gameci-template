@@ -1,0 +1,134 @@
+name: "Unity Game CI Build"
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      unity-custom-image:
+        required: true
+        type: string
+      android-api-level:
+        required: true
+        type: string
+      playstore-lane:
+        required: true
+        type: string
+    secrets:
+      UNITY_LICENSE:
+        required: true
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_KEYSTORE_PASS:
+        required: true
+      ANDROID_KEYALIAS_NAME:
+        required: true
+      ANDROID_KEYALIAS_PASS:
+        required: true
+
+jobs:
+  androidBuild:
+    name: Android Build
+    runs-on: windows-latest
+    steps:
+
+      # Checkout (without LFS)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # Git LFS
+      - name: Create LFS file list
+        run: git lfs ls-files -l | sort > .lfs-assets-id
+
+      - name: Git LFS Pull
+        run: |
+          git lfs pull
+          git add .
+          git reset --hard
+
+      # Cache
+      - name: Restore LFS cache
+        uses: actions/cache@v3
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: |
+            lfs-
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: src/Library
+          key: src-Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            src-Library-
+
+      # Build
+      - name: Build project
+        uses: game-ci/unity-builder@v4.3.0
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with: #editor-windows-6000.0.11f1-android-3.1.0
+          customImage: '${{ inputs.unity-custom-image }}'
+          projectPath: src
+          targetPlatform: Android
+          allowDirtyBuild: false
+          versioning: Semantic
+          androidExportType: 'androidAppBundle'
+          androidAppBundle: true
+          androidKeystoreName: appStore.keystore
+          androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
+          androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
+          androidTargetSdkVersion: '${{ inputs.android-api-level }}'
+      #Output
+      - uses: actions/upload-artifact@v4.3.4
+        with:
+          name: Android-Build
+          path: build/Android
+          retention-days: 7
+          overwrite: true
+
+  deployToGooglePlayInternalLane:
+    name: Deploy to the Google Play Store Internal Track
+    runs-on: ubuntu-latest
+    needs: androidBuild
+    environment: ${{ inputs.environment }}
+    env:
+      GOOGLE_PLAY_KEY_FILE: ${{ secrets.GOOGLE_PLAY_KEY_FILE }}
+      GOOGLE_PLAY_KEY_FILE_PATH:
+        ${{ format('{0}/fastlane/google-fastlane.json', github.workspace) }}
+      ANDROID_BUILD_FILE_PATH: ${{ format('{0}/build/Android/Android.aab', github.workspace) }}
+      ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: Android-Build
+          #github-token: ${{ secrets.GIT_TOKEN }}
+          #repository: juniobiel/axios
+          #run-id: ${{ inputs.run_id }}
+          path: build/Android
+          
+      - name: Add Authentication
+        run: echo "$GOOGLE_PLAY_KEY_FILE" > $GOOGLE_PLAY_KEY_FILE_PATH
+      - name: Set up Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3' # Not needed with a .ruby-version file
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+      - name: Deployment to Google Play Internal Draft
+        uses: maierj/fastlane-action@v2.0.1
+        with:
+          lane: '${{ inputs.playstore-lane }}' # Change to upload to a different lane
